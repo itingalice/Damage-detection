@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>詳細結果</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #2a4d69;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin: 5px 0 20px 0;
+      font-weight: normal;
+      color: #444;
+    }
+
+    #resultsContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      flex-grow: 1;
+    }
+
+    .image-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      flex: 1;
+    }
+
+    .image-block img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .info-text {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #333;
+      text-align: center;
+    }
+
+    .action-btn {
+      margin-top: auto;
+      margin-bottom: 40px;
+      padding: 10px 20px;
+      font-size: 15px;
+      font-weight: 500;
+      background-color: #3498db;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .action-btn:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    @media (min-width: 768px) {
+      #resultsContainer {
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+      }
+
+      .image-block {
+        max-width: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>詳細評估結果</h1>
+  <h2 id="overallLevel">整體等級：載入中...</h2>
+  <h2 id="overallAdvice">建議行動：載入中...</h2>
+
+  <div id="resultsContainer"></div>
+
+  <a href="web_2.html" class="action-btn">首頁</a>
+
+  <script>
+    window.onload = async function () {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        document.getElementById('overallLevel').innerText = "整體等級：無法取得使用者 ID";
+        document.getElementById('overallAdvice').innerText = "建議行動：無法取得使用者 ID";
+        return;
+      }
+
+      document.getElementById('overallLevel').innerText = "整體等級：Class C";
+      document.getElementById('overallAdvice').innerText = "建議行動：Harmless / 無傷大雅";
+
+      try {
+        const res = await fetch(`https://your-backend-url/results/check_detailed/${userId}`);
+        const data = await res.json();
+
+        const types = ['wall', 'column', 'beam'];
+        const container = document.getElementById('resultsContainer');
+
+        types.forEach(type => {
+          const item = data.find(d => d.detectionType === type);
+          const block = document.createElement('div');
+          block.className = 'image-block';
+
+          const title = document.createElement('h3');
+          title.innerText = type === 'wall' ? '牆' : type === 'column' ? '柱' : '梁';
+          block.appendChild(title);
+
+          const img = document.createElement('img');
+          const classification = document.createElement('div');
+          classification.className = 'info-text';
+          const detection = document.createElement('div');
+          detection.className = 'info-text';
+
+          if (item && item.original_image) {
+            img.src = item.original_image.startsWith("data:image")
+              ? item.original_image
+              : `data:image/jpeg;base64,${item.original_image}`;
+            classification.innerText = `分類等級：${item.classification || '未知'}`;
+            detection.innerText = item.detection_result && item.detection_result.length > 0
+              ? `檢測結果：有偵測框（共 ${item.detection_result.length} 處）`
+              : `檢測結果：未偵測到損傷`;
+          } else {
+            img.alt = "無數據";
+            classification.innerText = "分類等級：無數據";
+            detection.innerText = "檢測結果：無數據";
+          }
+
+          block.appendChild(img);
+          block.appendChild(classification);
+          block.appendChild(detection);
+          container.appendChild(block);
+        });
+
+      } catch (err) {
+        console.error("載入詳細結果失敗:", err);
+        document.getElementById('overallLevel').innerText = "整體等級：載入失敗";
+        document.getElementById('overallAdvice').innerText = "建議行動：載入失敗";
+      }
+    };
+  </script>
+</body>
+</html>

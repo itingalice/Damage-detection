@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>圖片上傳 - 梁柱牆</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h2 {
+      margin: 20px 0;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;   /* 允許自動換行 */
+      justify-content: center;
+      margin: 20px;
+      gap: 20px;         /* 每個分區之間的間距 */
+    }
+    .section {
+      flex: 1 1 100px;   /* 預設最小 300px，會自動縮放 */
+      max-width: 350px;  /* 避免太寬 */
+      margin: 0;
+      padding: 15px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+      transition: border-color 0.3s, background-color 0.3s;
+    }
+    .section.dragover {
+      border-color: #007bff;
+      background-color: #eef6ff;
+    }
+    .preview {
+      margin-bottom: 10px;
+      min-height: 200px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      border: 1px dashed #aaa;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .image-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    .preview img {
+      max-width: 100px;
+      max-height: 100px;
+      object-fit: contain;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: rgba(255, 0, 0, 0.8);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 14px;
+      line-height: 18px;
+      text-align: center;
+      cursor: pointer;
+      display: none;
+    }
+    .image-wrapper:hover .delete-btn {
+      display: block;
+    }
+    .upload-btn {
+      display: block;
+      margin: 10px auto 0 auto;
+    }
+    .action-btn {
+      margin-top: 30px;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .action-btn:hover {
+      background-color: #0056b3;
+    }
+
+    /* Modal (自訂確認視窗) */
+    .modal {
+      display: none; 
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s;
+    }
+    .modal h3 {
+      margin-bottom: 15px;
+    }
+    .modal button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .modal .confirm {
+      background: #007bff;
+      color: white;
+    }
+    .modal .cancel {
+      background: #ccc;
+      margin-left: 10px;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    /* 響應式設定 */
+    @media (max-width: 600px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+      }
+      .section {
+        max-width: 90%;
+      }
+    }
+    @media (min-width: 601px) and (max-width: 992px) {
+      .section {
+        flex: 1 1 calc(50% - 40px); /* 兩欄 */
+        max-width: 100%;
+      }
+    }
+    @media (min-width: 993px) {
+      .section {
+        flex: 1 1 calc(33% - 40px); /* 三欄 */
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>請上傳結構物圖片</h2>
+  <div class="container">
+    <div class="section" id="beam-section" 
+         ondragover="allowDrop(event)" 
+         ondragleave="removeHighlight(event)" 
+         ondrop="handleDrop(event, 'preview-beam')">
+      <h3>梁</h3>
+      <div class="preview" id="preview-beam">拖曳圖片到這裡或使用下方按鈕上傳</div>
+      <input type="file" accept="image/*" multiple class="upload-btn" onchange="previewImages(event, 'preview-beam')">
+    </div>
+
+    <div class="section" id="column-section" 
+         ondragover="allowDrop(event)" 
+         ondragleave="removeHighlight(event)" 
+         ondrop="handleDrop(event, 'preview-column')">
+      <h3>柱</h3>
+      <div class="preview" id="preview-column">拖曳圖片到這裡或使用下方按鈕上傳</div>
+      <input type="file" accept="image/*" multiple class="upload-btn" onchange="previewImages(event, 'preview-column')">
+    </div>
+
+    <div class="section" id="wall-section" 
+         ondragover="allowDrop(event)" 
+         ondragleave="removeHighlight(event)" 
+         ondrop="handleDrop(event, 'preview-wall')">
+      <h3>牆</h3>
+      <div class="preview" id="preview-wall">拖曳圖片到這裡或使用下方按鈕上傳</div>
+      <input type="file" accept="image/*" multiple class="upload-btn" onchange="previewImages(event, 'preview-wall')">
+    </div>
+  </div>
+
+  <button class="action-btn" onclick="openModal()">察看結果評估</button>
+
+  <!-- 自訂 Modal -->
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <h3>確定已上傳完所有圖片？</h3>
+      <button class="confirm" onclick="goToNext()">確認</button>
+      <button class="cancel" onclick="closeModal()">取消</button>
+    </div>
+  </div>
+
+  <script>
+    // 初始化：取得 userId 並儲存
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('https://your-backend-url/get_user_id')  // ← 換成你的後端網址
+      .then(response => response.json())
+      .then(data => {
+        const userId = data.userId;
+        console.log("取得的 userId:", userId);
+        localStorage.setItem('userId', userId);  // 儲存到 localStorage
+      })
+      .catch(error => {
+        console.error("取得 userId 失敗:", error);
+      });
+  });
+
+  // 你可以在圖片上傳時這樣取出 userId：
+  function getUserId() {
+    return localStorage.getItem('userId');
+  }
+    function previewImages(event, previewId) {
+      const files = event.target.files;
+      appendFiles(files, previewId);
+      event.target.value = ""; // 允許重複選擇同一檔案
+    }
+
+    function appendFiles(files, previewId) {
+      const preview = document.getElementById(previewId);
+      if (preview.innerText.includes("拖曳圖片到這裡")) {
+        preview.innerHTML = ""; // 移除提示文字
+      }
+      Array.from(files).forEach(file => {
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("image-wrapper");
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+
+            const delBtn = document.createElement("button");
+            delBtn.innerHTML = "🗑";
+            delBtn.classList.add("delete-btn");
+            delBtn.onclick = () => wrapper.remove();
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(delBtn);
+            preview.appendChild(wrapper);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    function allowDrop(event) {
+      event.preventDefault();
+      event.currentTarget.classList.add("dragover");
+    }
+
+    function removeHighlight(event) {
+      event.currentTarget.classList.remove("dragover");
+    }
+
+    function handleDrop(event, previewId) {
+      event.preventDefault();
+      event.currentTarget.classList.remove("dragover");
+      const files = event.dataTransfer.files;
+      appendFiles(files, previewId);
+    }
+
+    // 自訂彈窗
+    function openModal() {
+      document.getElementById("myModal").style.display = "flex";
+    }
+    function closeModal() {
+      document.getElementById("myModal").style.display = "none";
+    }
+    async function goToNext() {
+      try {
+        const response = await fetch("http://localhost:5000/get_user_id");
+        const result = await response.json();
+        const userId = result.userId;
+        localStorage.setItem("userId", userId);
+        console.log("已建立 userId:", userId);
+        window.location.href = "web_5.html";
+      } catch (error) {
+        console.error("建立 userId 失敗:", error);
+        alert("系統忙碌，請稍後再試！");
+      }
+    }
+    let userId = null;
+
+  // 取得 userId
+  fetch("http://localhost:5000/get_user_id")
+    .then(res => res.json())
+    .then(data => {
+      userId = data.userId;
+      console.log("取得 userId:", userId);
+    });
+
+  const detectionTypeMap = {
+    "preview-beam": "beam",
+    "preview-column": "column",
+    "preview-wall": "wall"
+  };
+
+  function previewImages(event, previewId) {
+    const files = event.target.files;
+    appendFiles(files, previewId);
+    event.target.value = ""; // 允許重複選擇同一檔案
+  }
+
+  function appendFiles(files, previewId) {
+    const preview = document.getElementById(previewId);
+    if (preview.innerText.includes("拖曳圖片到這裡")) {
+      preview.innerHTML = ""; // 移除提示文字
+    }
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const wrapper = document.createElement("div");
+          wrapper.classList.add("image-wrapper");
+
+          const img = document.createElement("img");
+          img.src = e.target.result;
+
+          const delBtn = document.createElement("button");
+          delBtn.innerHTML = "🗑";
+          delBtn.classList.add("delete-btn");
+          delBtn.onclick = () => wrapper.remove();
+
+          wrapper.appendChild(img);
+          wrapper.appendChild(delBtn);
+          preview.appendChild(wrapper);
+        };
+        reader.readAsDataURL(file);
+
+        // ✅ 上傳到後端
+        const detectionType = detectionTypeMap[previewId];
+        uploadToServer(file, detectionType);
+      }
+    });
+  }
+
+  function uploadToServer(file, detectionType) {
+    if (!userId) {
+      console.error("尚未取得 userId，請稍後再試");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("userId", userId);
+    formData.append("detectionType", detectionType);
+    formData.append("CE_state", "false"); // 暫不估價
+
+    fetch("http://localhost:5000/image", {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("✅ 上傳成功：", data);
+    })
+    .catch(err => {
+      console.error("❌ 上傳失敗：", err);
+    });
+  }
+
+  function allowDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.add("dragover");
+  }
+
+  function removeHighlight(event) {
+    event.currentTarget.classList.remove("dragover");
+  }
+
+  function handleDrop(event, previewId) {
+    event.preventDefault();
+    event.currentTarget.classList.remove("dragover");
+    const files = event.dataTransfer.files;
+    appendFiles(files, previewId);
+  }
+
+  function openModal() {
+    document.getElementById("myModal").style.display = "flex";
+  }
+
+  function closeModal() {
+    document.getElementById("myModal").style.display = "none";
+  }
+
+  async function goToNext() {
+  await uploadImages();
+  window.location.href = "web_5.html";
+  }
+  // ✅ 將 base64 轉為 File 物件
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mime });
+}
+
+// ✅ 上傳所有圖片到 /image API
+async function uploadImages() {
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    alert("找不到 userId，請重新整理頁面");
+    return;
+  }
+
+  const detectionTypes = ['beam', 'column', 'wall'];
+  const CE_state = true;
+  const CE_ratio = 0.3;
+
+  for (const type of detectionTypes) {
+    const preview = document.getElementById(`preview-${type}`);
+    const wrappers = preview.querySelectorAll('.image-wrapper img');
+
+    for (const img of wrappers) {
+      const file = dataURLtoFile(img.src, `${type}_${Date.now()}.jpg`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', userId);
+      formData.append('detectionType', type);
+      formData.append('CE_state', CE_state.toString());
+      formData.append('CE_ratio', CE_ratio.toString());
+
+      try {
+        const res = await fetch('https://your-backend-url/image', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await res.json();
+        console.log(`上傳 ${type} 成功:`, result);
+      } catch (err) {
+        console.error(`上傳 ${type} 失敗:`, err);
+      }
+    }
+  }
+}
+  </script>
+</body>
+</html>
